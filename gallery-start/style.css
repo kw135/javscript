@@ -41,3 +41,9 @@ button {
   float: left;
   cursor: pointer;
 }
+.dmode{
+  color: #333;
+}
+.lmode{
+ color: #fff;
+}

@@ -1,7 +1,8 @@
 const displayedImage = document.querySelector('.displayed-img');
 const thumbBar = document.querySelector('.thumb-bar');
-
-const btn = document.querySelector('button');
+const myh1 = document.querySelector('#myh1')
+const btn = document.querySelector('#btn');
+const btn1 = document.querySelector('#btn1');
 const overlay = document.querySelector('.overlay');
 
 /* Declaring the array of image filenames */
@@ -21,17 +22,33 @@ for (let i = 0;i<myImg.length;i++) {
 }
 
 /* Wiring up the Darken/Lighten button */
-function dark() {
-    const btncls = btn.getAttribute('class')
-    if (btncls==='dark') {
+function toggleDarkOverlay() {
+    const btnClass = btn.getAttribute('class')
+    if (btnClass==='dark') {
         btn.setAttribute('class','light');
         btn.textContent = 'lighten';
         overlay.style.backgroundColor = "rgb(0 0 0 / 50%)";
-    } else if (btncls==='light') {
+    } else if (btnClass==='light') {
         btn.setAttribute('class','dark');
         btn.textContent = 'darken';
         overlay.style.backgroundColor = "rgb(0 0 0 / 0%)";
     }
 }
 
-btn.addEventListener('click', dark)
+btn.addEventListener('click', toggleDarkOverlay)
+
+function toggleDarkMode() {
+    const btnClass = btn1.getAttribute('class')
+    if (btnClass==='dmode') {
+        btn1.setAttribute('class','lmode');
+        myh1.setAttribute('class','lmode');
+        btn1.textContent = 'light mode';
+        document.body.style.backgroundColor = "#333";
+    } else if (btnClass==='lmode') {
+        btn1.setAttribute('class','dmode');
+        myh1.setAttribute('class','dmode');
+        btn1.textContent = 'dark mode';
+        document.body.style.backgroundColor = "#fff";
+    }
+}
+btn1.addEventListener('click', toggleDarkMode)
