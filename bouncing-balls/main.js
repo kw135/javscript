@@ -29,6 +29,23 @@ class Shape {
     this.velY = velY;
   }
 
+  onCollision(ball) {
+    throw new Error("onCollision not implemented")
+  }
+
+  collisionDetect() {
+    for (const ball of balls) {
+       if (!(this === ball) && ball.exists) {
+          const dx = this.x - ball.x;
+          const dy = this.y - ball.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance < this.size + ball.size) {
+            this.onCollision(ball)
+          }
+       }
+    }
+ }
 }
 
 class Ball extends Shape {
@@ -69,21 +86,9 @@ class Ball extends Shape {
     this.y += this.velY;
   }
 
-
-  collisionDetect() {
-     for (const ball of balls) {
-        if (!(this === ball) && ball.exists) {
-           const dx = this.x - ball.x;
-           const dy = this.y - ball.y;
-           const distance = Math.sqrt(dx * dx + dy * dy);
-
-           if (distance < this.size + ball.size) {
-             ball.color = this.color = randomRGB();
-           }
-        }
-     }
+  onCollision(ball) {
+    ball.color = this.color = randomRGB();
   }
-
 }
 
 class EvilCircle extends Shape {
@@ -138,21 +143,12 @@ class EvilCircle extends Shape {
     }
   }
 
-  collisionDetect() {
-    for (const ball of balls) {
-      if (ball.exists) {
-        const dx = this.x - ball.x;
-        const dy = this.y - ball.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance < this.size + ball.size) {
-          ball.exists = false;
-          count--;
-          para.textContent = 'Ball count: ' + count;
-        }
-      }
-    }
+  onCollision(ball) {
+    ball.exists = false;
+    count--;
+    para.textContent = 'Ball count: ' + count;
   }
+
 
 }
 
@@ -160,8 +156,8 @@ class EvilCircle extends Shape {
 
 const balls = [];
 
-while (balls.length < 25) {
-  const size = random(10, 20);
+while (balls.length < 8000) {
+  const size = random(10, 11);
   const ball = new Ball(
     // ball position always drawn at least one ball width
     // away from the edge of the canvas, to avoid drawing errors
