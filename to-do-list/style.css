@@ -1,0 +1,7 @@
+div input[type= "text"] {
+    margin: 5px 10%;
+    width: 60%;
+    height: 30px;
+    font-size: 1em;
+    border-radius: 5px;
+}
