@@ -1,137 +1,196 @@
-const input = document.querySelector(".new-todo")
-const list = document.querySelector(".todo-list")
-const doneButton = document.querySelector(".toggle")
+const textInput = document.querySelector(".new-todo")
+const taskList = document.querySelector(".todo-list")
+const toggleButton = document.querySelector(".toggle")
 const main = document.querySelector(".main")
 const footer = document.querySelector(".footer")
-const li = document.querySelector("li")
-const destroyButton = document.querySelector(".destroy")
+const listItem = document.querySelector("li")
+const deleteButton = document.querySelector(".destroy")
 const count = document.querySelector(".todo-count")
-const toggleAllCheckbox = document.querySelector('toggle-all');
+const toggleAllCheckbox = document.querySelector('.toggle-all');
 const clearCompleted = document.querySelector('.clear-completed')
 clearCompleted.style.display = "none"
 
+displayElements()
+function monitorListChanges() {
+    const observer = new MutationObserver((mutationsList) => {
+        let liCountChanged = false;
+        for (const mutation of mutationsList) {
+            if (mutation.type === 'childList') {
+                liCountChanged = true;
+                break;
+            }
+        }
+        if (liCountChanged) {
+            checkAmount()
+            displayElements()
+        }
+    });
+    const config = { childList: true, subtree: false };
+    observer.observe(taskList, config);
+}
+monitorListChanges();
 
-function check() {
-    if (counter > 1){
-        return count.textContent = counter + " items left"
+function checkAmount() {
+    let todosCount = document.querySelectorAll("li").length - 3
+    if (todosCount > 1){
+        return count.textContent = todosCount + " items left"
     }else {
-        return count.textContent = counter + " item left"
+        return count.textContent = todosCount + " item left"
     }
 }
-let counter = 0
-check()
+function detectChange(){
+    const checkk = document.querySelectorAll(".toggle")
+    for (let i = 0; i<checkk.length;i++) {
+        if (checkk[i].checked) {
+            clearCompleted.style.display = "block"
+        } else {
+            clearCompleted.style.display = "none"
+        }
+    }
+}
+function displayElements() {
+    let size = document.querySelectorAll("li").length - 3
+    if (size < 1) {
+        main.style.display = "none"
+        footer.style.display = "none"
+    } else {
+        main.style.display = "block"
+        footer.style.display = "block"
+    }
+}
 
-if (document.querySelector("ul").innerHTML.trim() == "") {
-    main.style.display = "none"
-    footer.style.display = "none"
-} 
-// let db
-// const openRequest = window.indexedDB.open("todo_db", 1);
-// openRequest.addEventListener("error", () =>
-//     console.error("Database failed to open"),
-//   );
-// openRequest.addEventListener("success", () => {
-//     console.log("Database opened successfully");
-//     db = openRequest.result;
-//   });
-// openRequest.addEventListener("upgradeneeded", (e) => {
-//   db = e.target.result;
+//opening database
+let db
+const openRequest = window.indexedDB.open("todo_db", 1);
+openRequest.addEventListener("error", () =>
+    console.error("Database failed to open"),
+  );
+openRequest.addEventListener("success", () => {
+    console.log("Database opened successfully");
+    db = openRequest.result;
+  });
+openRequest.addEventListener("upgradeneeded", (e) => {
+  db = e.target.result;
 
 
-//   const objectStore = db.createObjectStore("todo_os", {
-//     keyPath: "id",
-//     autoIncrement: true,
-//   });
+  const objectStore = db.createObjectStore("todo_os", {
+    keyPath: "id",
+    autoIncrement: true,
+  });
 
-//   objectStore.createIndex("title", "title", { unique: false });
-//   objectStore.createIndex("body", "body", { unique: false });
+  objectStore.createIndex("title", "title", { unique: false });
+  objectStore.createIndex("body", "body", { unique: false });
 
-//   console.log("Database setup complete");
-// });
+  console.log("Database setup complete");
+});
 
-input.addEventListener("change", () => {
-    const text = input.value
+//add a task to the list
+textInput.addEventListener("change", () => {
+    const text = textInput.value
     text.trim()
-    main.style.display = "block"
-    footer.style.display = "block"
     const div = document.createElement("div")
     div.className = "view"
-    const doneButton = document.createElement("input")
-    doneButton.type = "checkbox"
-    doneButton.className = "toggle"
-    const destroyButton = document.createElement("button")
-    destroyButton.className = "destroy"
-    const li = document.createElement("li")
+    const toggleButton = document.createElement("input")
+    toggleButton.type = "checkbox"
+    toggleButton.className = "toggle"
+    const deleteButton = document.createElement("button")
+    deleteButton.className = "destroy"
+    const listItem = document.createElement("li")
     const label = document.createElement("label")
     label.textContent = text
-    div.appendChild(doneButton)
+    div.appendChild(toggleButton)
     div.appendChild(label)
-    div.appendChild(destroyButton)
-    li.appendChild(div)
-    list.append(li)
-    input.value = ""
-    input.focus()
-    counter +=1
-    check()
+    div.appendChild(deleteButton)
+    listItem.appendChild(div)
+    taskList.append(listItem)
 
-    // const newItem = { title: input.value, completed: doneButton.value };
-    // const transaction = db.transaction(["todo_os"], "readwrite");
-    // const objectStore = transaction.objectStore("todo_os");
-  
-    // const addRequest = objectStore.add(newItem);
+    const newItem = { title: textInput.value,completed: toggleButton.value };
+    let transaction = db.transaction(["todo_os"], "readwrite");
+    const objectStore = transaction.objectStore("todo_os");
+    const query = objectStore.add(newItem);
+    query.onsuccess = (e) => {
+        // Add id as an attribute to one of HTML elements
+        listItem.setAttribute("meta-id", e.target.result)
+        console.log('added', e.target.result)
+    }
+    transaction.addEventListener("complete", (e) => {
+        console.log('complete', e)
+        console.log("Transaction completed: database modification finished.");
+      });
+    
+      transaction.addEventListener("error", () =>
+        console.log("Transaction not opened due to error"),
+      );
 
-    destroyButton.addEventListener("click",removeTask)
+    textInput.value = ""
+    textInput.focus()
+    detectChange()
+
+    //deleting a task
+    deleteButton.addEventListener("click",removeTask)
     function removeTask() {
-        list.removeChild(li)
-        counter -=1
-        check()
-        if (document.querySelector("ul").innerHTML.trim() == "") {
-            main.style.visibility = "hidden"
-            footer.style.visibility = "hidden"
-        } 
+        listItem.remove()
+        detectChange()
+
+        const noteId = Number(listItem.getAttribute("meta-id"))
+        transaction = db.transaction(["todo_os"], "readwrite");
+        const objectStore = transaction.objectStore("todo_os");
+        objectStore.delete(noteId);
+        console.log(`Note ${noteId} deleted.`);
+
     }
 
-    doneButton.addEventListener("click",(e) => {
-        if (!doneButton.checked) {
-            e.target.parentNode.parentNode.className = ""
+    //marking the task as completed
+    toggleButton.addEventListener("click",mark)
+    function mark() {
+        detectChange()
+        if (!toggleButton.checked) {
+            listItem.className = ""
         } else {
-            e.target.parentNode.parentNode.className = "completed"
+            listItem.className = "completed"
+            clearCompleted.style.display = "block"
         }
-    })
+    }
 
+    //editing the content of the task
     label.addEventListener("dblclick", () => {
+        listItem.className = "editing"
         const newText = document.createElement("input")
+        newText.className = "edit"
         newText.type = "text"
-        div.removeChild(destroyButton)
-        div.removeChild(doneButton)
-        div.appendChild(newText)
+        listItem.appendChild(newText)
         newText.focus()
         newText.addEventListener("change", () => {
             label.textContent = newText.value
-            div.removeChild(newText)
-            div.appendChild(doneButton)
-            div.appendChild(label)
-            div.appendChild(destroyButton)
+            listItem.removeChild(newText)
+            listItem.className = ""
         })
     })
 
-
+    //button that marks all tasks as done
+    let clickCounter = 0
     toggleAllCheckbox.addEventListener('change',() => {
-        const listItems = document.querySelectorAll("li")
-            for (let i =0;i<list.length;i++) {
+
+            if (clickCounter === 0) {
+                toggleButton.checked = true
+                listItem.className = "completed"
+                detectChange()
+                clickCounter++
+            }   else if (clickCounter === 1){
+                toggleButton.checked = false
+                listItem.className = ""
+                detectChange()
+                clickCounter--
             }
-    })
+        } 
+    )
 
-    // clearCompleted.addEventListener('change', () => {
-       
-    // });
+    //button which deletes all completed tasks
+    clearCompleted.addEventListener('click', () => {
+        const checkk = document.querySelectorAll(".toggle")
+        for (let i = 0; i<checkk.length;i++) {
+            if (toggleButton.checked) toggleButton.addEventListener("click",removeTask())
+        }
+        detectChange()
+    });
 })
-
-
-// (function (window) {
-// 	'use strict';
-
-// 	// Your starting point. Enjoy the ride!
-
-// })(window);
-
