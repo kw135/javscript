@@ -160,7 +160,7 @@ function setFilter(filter) {
 window.addEventListener("load", function () {
   var activeFilter = localStorage.getItem("activeFilter") || "all";
   router.setRoute(activeFilter === "all" ? "/" : "/" + activeFilter);
-  activeFilter.classList.add("selected");
+  setFilter(activeFilter);
 });
 
 document.querySelector("#filter-all").dataset.filter = "all";
