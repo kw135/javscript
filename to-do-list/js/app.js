@@ -9,7 +9,6 @@ const count = document.querySelector(".todo-count");
 const toggleAllCheckboxButton = document.querySelector(".toggle-all");
 const clearCompletedButton = document.querySelector(".clear-completed");
 clearCompletedButton.style.display = "none";
-
 //otwarcie bazy danych
 let db;
 const openRequest = window.indexedDB.open("todo_db", 1);
@@ -161,6 +160,7 @@ function setFilter(filter) {
 window.addEventListener("load", function () {
   var activeFilter = localStorage.getItem("activeFilter") || "all";
   router.setRoute(activeFilter === "all" ? "/" : "/" + activeFilter);
+  activeFilter.classList.add("selected");
 });
 
 document.querySelector("#filter-all").dataset.filter = "all";
@@ -382,9 +382,6 @@ function updateStatus(key, value, type) {
     } else if (type === "string") {
       check.title = value;
     }
-    const updateRequest = objectStore.put(check);
-    updateRequest.onsuccess = () => {
-      console.log("Status updated successfully", typeof value, request.result);
-    };
+    objectStore.put(check);
   };
 }
