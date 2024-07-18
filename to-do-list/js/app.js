@@ -10,6 +10,44 @@ const toggleAllCheckboxButton = document.querySelector(".toggle-all");
 const clearCompletedButton = document.querySelector(".clear-completed");
 clearCompletedButton.style.display = "none";
 
+//otwarcie bazy danych
+let db;
+const openRequest = window.indexedDB.open("todo_db", 1);
+openRequest.addEventListener("error", () =>
+  console.error("Database failed to open")
+);
+openRequest.addEventListener("success", () => {
+  console.log("Database opened successfully");
+  db = openRequest.result;
+});
+openRequest.addEventListener("upgradeneeded", (e) => {
+  db = e.target.result;
+  const objectStore = db.createObjectStore("todo_os", {
+    keyPath: "id",
+    autoIncrement: true,
+  });
+  objectStore.createIndex("title", "title", { unique: false });
+  objectStore.createIndex("body", "body", { unique: false });
+  console.log("Database setup complete");
+});
+let isDbOpened = false;
+let isWindowLoaded = false;
+
+openRequest.addEventListener("success", () => {
+  isDbOpened = true;
+  db = openRequest.result;
+  if (isWindowLoaded) {
+    loadPreviousTasks();
+  }
+});
+
+window.addEventListener("load", () => {
+  isWindowLoaded = true;
+  if (isDbOpened) {
+    loadPreviousTasks();
+  }
+});
+
 displayElements();
 function monitorListChanges() {
   //wywoluje sie kiedy zmieni sie liczba li
@@ -71,44 +109,63 @@ function displayElements() {
     footer.style.display = "block";
   }
 }
+const routes = {
+  "/": showAll,
+  "/active": showActive,
+  "/completed": showCompleted,
+};
+const router = Router(routes);
+router.init();
 
-//otwarcie bazy danych
-let db;
-const openRequest = window.indexedDB.open("todo_db", 1);
-openRequest.addEventListener("error", () =>
-  console.error("Database failed to open")
-);
-openRequest.addEventListener("success", () => {
-  console.log("Database opened successfully");
-  db = openRequest.result;
-});
-openRequest.addEventListener("upgradeneeded", (e) => {
-  db = e.target.result;
-  const objectStore = db.createObjectStore("todo_os", {
-    keyPath: "id",
-    autoIncrement: true,
+function showAll() {
+  filterTodos("all");
+  setFilter("all");
+}
+
+function showActive() {
+  filterTodos("active");
+  setFilter("active");
+}
+
+function showCompleted() {
+  filterTodos("completed");
+  setFilter("completed");
+}
+
+function filterTodos(filter) {
+  var todos = document.querySelectorAll(".todo-list li");
+  todos.forEach(function (todo) {
+    var isCompleted = todo.classList.contains("completed");
+    if (filter === "all") {
+      todo.style.display = "block";
+    } else if (filter === "active") {
+      todo.style.display = isCompleted ? "none" : "block";
+    } else if (filter === "completed") {
+      todo.style.display = isCompleted ? "block" : "none";
+    }
   });
-  objectStore.createIndex("title", "title", { unique: false });
-  objectStore.createIndex("body", "body", { unique: false });
-  console.log("Database setup complete");
-});
-let isDbOpened = false;
-let isWindowLoaded = false;
+}
 
-openRequest.addEventListener("success", () => {
-  isDbOpened = true;
-  db = openRequest.result;
-  if (isWindowLoaded) {
-    loadPreviousTasks();
-  }
+function setFilter(filter) {
+  var filters = document.querySelectorAll(".filter");
+  filters.forEach(function (link) {
+    if (link.dataset.filter === filter) {
+      link.classList.add("selected");
+    } else {
+      link.classList.remove("selected");
+    }
+  });
+  localStorage.setItem("activeFilter", filter);
+}
+
+window.addEventListener("load", function () {
+  var activeFilter = localStorage.getItem("activeFilter") || "all";
+  router.setRoute(activeFilter === "all" ? "/" : "/" + activeFilter);
 });
 
-window.addEventListener("load", () => {
-  isWindowLoaded = true;
-  if (isDbOpened) {
-    loadPreviousTasks();
-  }
-});
+document.querySelector("#filter-all").dataset.filter = "all";
+document.querySelector("#filter-active").dataset.filter = "active";
+document.querySelector("#filter-completed").dataset.filter = "completed";
 
 function addRemoveTaskListener(deleteButton, listItem) {
   deleteButton.addEventListener("click", removeTask);
@@ -126,16 +183,17 @@ function addMarkTaskListener(toggleButton, listItem) {
     const key = Number(listItem.getAttribute("meta-id"));
     if (!toggleButton.checked) {
       listItem.className = "";
-      updateStatus(key, false);
+      updateStatus(key, false, "boolean");
     } else {
       listItem.className = "completed";
-      updateStatus(key, true);
+      updateStatus(key, true, "boolean");
     }
   }
 }
 function addEditLabelListener(label, listItem) {
   label.addEventListener("click", editLabel);
   function editLabel() {
+    const key = Number(listItem.getAttribute("meta-id"));
     listItem.className = "editing";
     const newText = document.createElement("input");
     newText.className = "edit";
@@ -144,12 +202,17 @@ function addEditLabelListener(label, listItem) {
     newText.focus();
     newText.addEventListener("change", () => {
       label.textContent = newText.value;
+      updateStatus(key, label.textContent, "string");
       listItem.removeChild(newText);
       listItem.className = "";
     });
   }
 }
-function addToggleAllCheckboxListener(toggleAllCheckboxButton, listItem, toggleButton) {
+function addToggleAllCheckboxListener(
+  toggleAllCheckboxButton,
+  listItem,
+  toggleButton
+) {
   let clickCounter = 0;
   toggleAllCheckboxButton.addEventListener("change", toggleAllCheckbox);
   function toggleAllCheckbox() {
@@ -164,7 +227,11 @@ function addToggleAllCheckboxListener(toggleAllCheckboxButton, listItem, toggleB
     }
   }
 }
-function addClearCompletedButtonListener(clearCompletedButton, listItem, toggleButton) {
+function addClearCompletedButtonListener(
+  clearCompletedButton,
+  listItem,
+  toggleButton
+) {
   clearCompletedButton.addEventListener("click", clearCompleted);
   function clearCompleted() {
     if (toggleButton.checked) {
@@ -303,19 +370,21 @@ textInput.addEventListener("change", () => {
   );
 });
 
-function updateStatus(key, value) {
+function updateStatus(key, value, type) {
   const objectStore = db
     .transaction("todo_os", "readwrite")
     .objectStore("todo_os");
   const request = objectStore.get(key);
   request.onsuccess = () => {
     let check = request.result;
-    if (typeof value === String) {
-      check.title = value;
-    } else if (value === Boolean) {
+    if (type === "boolean") {
       check.completed = value;
+    } else if (type === "string") {
+      check.title = value;
     }
     const updateRequest = objectStore.put(check);
-    updateRequest.onsuccess = () => {};
+    updateRequest.onsuccess = () => {
+      console.log("Status updated successfully", typeof value, request.result);
+    };
   };
 }
