@@ -1,10 +1,7 @@
 const textInput = document.querySelector(".new-todo");
 const taskList = document.querySelector(".todo-list");
-const toggleButton = document.querySelector(".toggle");
 const main = document.querySelector(".main");
 const footer = document.querySelector(".footer");
-const listItem = document.querySelector("li");
-const deleteButton = document.querySelector(".destroy");
 const count = document.querySelector(".todo-count");
 const toggleAllCheckboxButton = document.querySelector(".toggle-all");
 const clearCompletedButton = document.querySelector(".clear-completed");
@@ -15,10 +12,6 @@ const openRequest = window.indexedDB.open("todo_db", 1);
 openRequest.addEventListener("error", () =>
   console.error("Database failed to open")
 );
-openRequest.addEventListener("success", () => {
-  console.log("Database opened successfully");
-  db = openRequest.result;
-});
 openRequest.addEventListener("upgradeneeded", (e) => {
   db = e.target.result;
   const objectStore = db.createObjectStore("todo_os", {
