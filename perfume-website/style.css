@@ -1,0 +1,136 @@
+@font-face {
+    font-family: 'Montserrat';
+    src: url(fonts/Montserrat-VariableFont_wght.ttf);
+}
+@font-face {
+    font-family: 'Fraunces';
+    src: url(fonts/Fraunces-VariableFont_SOFT\,WONK\,opsz\,wght.ttf);
+}
+body {
+    background-color: hsl(30, 38%, 92%);
+}
+.flex{
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+.container{
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    margin: auto;
+    border-radius: 3%;
+    width: 666px;
+    height: 500px;
+    background-color: hsl(0, 0%, 100%);
+}
+
+#img1 {
+    content: url(images/image-product-desktop.jpg);
+    box-sizing: border-box;
+    width: 333px;
+    height: 500px;
+    border-radius: 3% 0 0 3%;
+}
+.children{
+    margin: 2% 5% ;
+    height: 450px;
+
+}
+.cart{
+    background-color: hsl(158, 36%, 37%);
+    border-radius: 10px;
+    color: hsl(0, 0%, 100%);
+    align-items: center;
+    padding: 5px ;
+}
+.cart img{
+    width: 7%;
+    height: 7%;
+    object-fit: cover;
+    margin-right: 5%;
+}
+.cart p{
+    font-size: 14px;
+    font-family: "Montserrat";
+    font-weight: 600;
+}
+.cart:hover{
+    background-color: hsl(212, 21%, 14%);
+    transition: 0.2s;
+}
+#para{
+    font-size: 14px;
+    color: hsl(228, 12%, 48%);
+    font-family: 'Montserrat';
+    font-weight: 400;
+    word-spacing: 5px;
+    margin: 0;
+    line-height: 23px;
+}
+.prices{
+    display: grid;
+    grid-template-columns: 50% 50%;
+    align-items: center;
+    padding: 0;
+}
+#price1{
+    color: hsl(158, 36%, 37%);
+    font-family: "Fraunces";
+    font-weight: 700;
+    font-size: 32px;
+}
+#price2{
+    color: hsl(228, 12%, 48%);
+    size: 16px;
+    text-decoration: line-through;
+    margin: 0 0 0 10%;
+}
+h2{
+    color: hsl(228, 12%, 48%);
+    font-family: 'Montserrat';
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 5px;
+    font-size: medium;
+    margin: 4% 0 0 0;
+}
+h1{
+    font-family: "Fraunces";
+    font-weight: 700;
+    font-size: 38px;
+    line-height: 38px;
+}
+
+@media screen and (max-width: 375px){
+    .container{
+        flex-direction: column;
+        margin: auto;
+        border-radius: 3%;
+        width: 330px;
+        height: 650px;
+        background-color: hsl(0, 0%, 100%);
+    }
+    .children{
+        padding: 0 3%;
+    }
+    #img1 {
+        content: url(images/image-product-mobile.jpg);
+        width: 330px;
+        height: auto;
+        border-radius: 3% 3% 0 0 ;
+    }
+    h1{
+        font-size: 32px;
+        line-height: 32px;
+    }
+    .prices{
+        height: 90px;
+    }
+    h2{
+        font-size: small;
+        margin: 7% 0 0 0;
+    }
+}
