@@ -13,6 +13,9 @@ function getFilteredTodos() {
     (todo) => todo.completed === (selectedFilter === "completed")
   );
 }
+function areAllTodosCompleted() {
+  return todos.every((todo) => todo.completed);
+}
 // Event handlers
 const onElementsDisplayed = (statement, element) => {
   return statement
@@ -21,7 +24,7 @@ const onElementsDisplayed = (statement, element) => {
 };
 const loadDb = () => {
   const transaction = db.transaction(["todo_os"], "readwrite");
-  return (objectStore = transaction.objectStore("todo_os"));
+  return transaction.objectStore("todo_os");
 };
 const onFilterSelected = (filter) => {
   selectedFilter = filter;
@@ -32,7 +35,7 @@ const onTodosLoadedFromDb = (loadedTodos) => {
   render();
 };
 const onTodoRemoved = (id) => {
-  loadDb();
+  const objectStore = loadDb();
   objectStore.delete(id);
   todos = todos.filter((todo) => todo.id !== id);
   render();
@@ -46,33 +49,50 @@ const onEditionCompleted = (id, newTitle) => {
   const todo = todos.find((todo) => todo.id === id);
   todo.title = newTitle;
   todo.isBeingEdited = false;
-  loadDb();
+  const objectStore = loadDb();
   objectStore.put(todo);
   render();
 };
 const onCompletedToggled = (id) => {
   const todo = todos.find((todo) => todo.id === id);
   todo.completed = !todo.completed;
-  loadDb();
+  const objectStore = loadDb();
   objectStore.put(todo);
   render();
 };
 const onPressedToggleAll = () => {
-  todos = todos.map((todo) => ({
-    ...todo,
-    completed: toggleAllCheckboxButton.checked,
-  }));
-  loadDb();
+  if (!todos.length) {
+    return;
+  }
+  const areAllCompleted = areAllTodosCompleted();
+  todos = todos.map((todo) => ({ ...todo, completed: !areAllCompleted }));
+  const objectStore = loadDb();
   todos.forEach((todo) => objectStore.put(todo));
   render();
 };
 const onPressedClearCompletedButton = () => {
-  loadDb();
-  todos.forEach((todo) =>
-    todo.completed ? objectStore.delete(todo.id) : null
-  );
+  const objectStore = loadDb();
+  todos.forEach((todo) => {
+    if (todo.completed) {
+      objectStore.delete(todo.id);
+    }
+  });
   todos = todos.filter((todo) => !todo.completed);
   render();
+};
+
+const onListUpdated = (text) => {
+  const objectStore = loadDb();
+  const request = objectStore.getAll();
+  request.onsuccess = () => {
+    const idNumber = request.result[request.result.length - 1].id;
+    todos.push({
+      title: text,
+      completed: false,
+      isBeingEdited: false,
+      id: idNumber,
+    });
+  };
 };
 //otwarcie bazy danych
 let db;
@@ -92,10 +112,8 @@ openRequest.addEventListener("upgradeneeded", (e) => {
 let isDbOpened = false;
 let isWindowLoaded = false;
 function loadInitialTodosFromDb() {
-  const request = db
-    .transaction("todo_os", "readonly")
-    .objectStore("todo_os")
-    .getAll();
+  const objectStore = loadDb();
+  const request = objectStore.getAll();
   request.onsuccess = () => {
     onTodosLoadedFromDb(request.result);
   };
@@ -113,6 +131,7 @@ window.addEventListener("load", () => {
     loadInitialTodosFromDb();
   }
 });
+
 const routes = {
   "/": () => onFilterSelected("all"),
   "/active": () => onFilterSelected("active"),
@@ -120,11 +139,13 @@ const routes = {
 };
 const router = Router(routes);
 router.init();
+
 clearCompletedButton.addEventListener("click", () =>
   onPressedClearCompletedButton()
 );
 toggleAllCheckboxButton.addEventListener("change", () => onPressedToggleAll());
 function render() {
+  toggleAllCheckboxButton.checked = areAllTodosCompleted();
   const li = document.querySelectorAll(".todo-list li");
   li.forEach((item) => {
     item.remove();
@@ -153,7 +174,6 @@ function render() {
     const filter = document.getElementById("filter-" + selectedFilter);
     filter.className = "filter selected";
     const listItem = document.createElement("li");
-    listItem.setAttribute("meta-id", todo.id);
     todo.completed
       ? (listItem.className = "completed")
       : (listItem.className = "");
@@ -166,9 +186,11 @@ function render() {
     const taskList = document.querySelector(".todo-list");
     taskList.append(listItem);
     const count = document.querySelector(".todo-count");
-    count.textContent = getTodosCount() + " items left";
+    todos.length === 1
+      ? (count.textContent = getTodosCount() + " item left")
+      : (count.textContent = getTodosCount() + " items left");
     if (todo.isBeingEdited) {
-      listItem.classList = "editing";
+      listItem.className = "editing";
       const newText = document.createElement("input");
       newText.className = "edit";
       newText.type = "text";
@@ -186,23 +208,17 @@ function render() {
     label.addEventListener("dblclick", () => onEditionInitiated(todo.id));
   });
 }
-textInput.addEventListener("change", () => {
-  const text = textInput.value;
-  text.trim();
-  const newItem = { title: text, completed: false };
-  loadDb();
-  objectStore.add(newItem);
-  textInput.value = "";
-  textInput.focus();
-  const request = objectStore.getAll();
-  request.onsuccess = () => {
-    const idNumber = request.result[request.result.length - 1].id;
-    todos.push({
-      title: text,
-      completed: false,
-      isBeingEdited: false,
-      id: idNumber,
-    });
+textInput.addEventListener("keypress", () => {
+  if (event.key === "Enter") {
+    const text = textInput.value;
+    text.trim();
+    const newItem = { title: text, completed: false };
+    const objectStore = loadDb();
+    objectStore.add(newItem);
+    textInput.value = "";
+    textInput.focus();
+    onListUpdated(text);
+    console.log(todos);
     render();
-  };
+  }
 });
