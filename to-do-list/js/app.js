@@ -1,13 +1,8 @@
 const textInput = document.querySelector(".new-todo");
-const taskList = document.querySelector(".todo-list");
-const main = document.querySelector(".main");
-const footer = document.querySelector(".footer");
-const count = document.querySelector(".todo-count");
 const toggleAllCheckboxButton = document.querySelector(".toggle-all");
 const clearCompletedButton = document.querySelector(".clear-completed");
 let todos = [];
 let selectedFilter = "all";
-
 // Selectors
 const getTodosCount = () => getFilteredTodos().length;
 function getFilteredTodos() {
@@ -18,72 +13,67 @@ function getFilteredTodos() {
     (todo) => todo.completed === (selectedFilter === "completed")
   );
 }
-
 // Event handlers
+const onElementsDisplayed = (statement, element) => {
+  return statement
+    ? (element.style.display = "block")
+    : (element.style.display = "none");
+};
+const loadDb = () => {
+  const transaction = db.transaction(["todo_os"], "readwrite");
+  return (objectStore = transaction.objectStore("todo_os"));
+};
 const onFilterSelected = (filter) => {
   selectedFilter = filter;
   render();
 };
-
 const onTodosLoadedFromDb = (loadedTodos) => {
   todos = loadedTodos;
   render();
 };
-
 const onTodoRemoved = (id) => {
-  const transaction = db.transaction(["todo_os"], "readwrite");
-  const objectStore = transaction.objectStore("todo_os");
+  loadDb();
   objectStore.delete(id);
   todos = todos.filter((todo) => todo.id !== id);
   render();
 };
-
 const onEditionInitiated = (id) => {
   const todo = todos.find((todo) => todo.id === id);
   todo.isBeingEdited = true;
   render();
 };
-
 const onEditionCompleted = (id, newTitle) => {
   const todo = todos.find((todo) => todo.id === id);
   todo.title = newTitle;
   todo.isBeingEdited = false;
-  const transaction = db.transaction(["todo_os"], "readwrite");
-  const objectStore = transaction.objectStore("todo_os");
+  loadDb();
   objectStore.put(todo);
   render();
 };
-
 const onCompletedToggled = (id) => {
   const todo = todos.find((todo) => todo.id === id);
   todo.completed = !todo.completed;
-  const transaction = db.transaction(["todo_os"], "readwrite");
-  const objectStore = transaction.objectStore("todo_os");
+  loadDb();
   objectStore.put(todo);
   render();
 };
-
 const onPressedToggleAll = () => {
   todos = todos.map((todo) => ({
     ...todo,
     completed: toggleAllCheckboxButton.checked,
   }));
-  const transaction = db.transaction(["todo_os"], "readwrite");
-  const objectStore = transaction.objectStore("todo_os");
+  loadDb();
   todos.forEach((todo) => objectStore.put(todo));
   render();
 };
-
 const onPressedClearCompletedButton = () => {
-  const transaction = db.transaction(["todo_os"], "readwrite");
-  const objectStore = transaction.objectStore("todo_os");
+  loadDb();
   todos.forEach((todo) =>
     todo.completed ? objectStore.delete(todo.id) : null
   );
   todos = todos.filter((todo) => !todo.completed);
   render();
 };
-
 //otwarcie bazy danych
 let db;
 const openRequest = window.indexedDB.open("todo_db", 1);
@@ -98,11 +88,9 @@ openRequest.addEventListener("upgradeneeded", (e) => {
   });
   objectStore.createIndex("title", "title", { unique: false });
   objectStore.createIndex("body", "body", { unique: false });
-  console.log("Database setup complete");
 });
 let isDbOpened = false;
 let isWindowLoaded = false;
-
 function loadInitialTodosFromDb() {
   const request = db
     .transaction("todo_os", "readonly")
@@ -112,7 +100,6 @@ function loadInitialTodosFromDb() {
     onTodosLoadedFromDb(request.result);
   };
 }
-
 openRequest.addEventListener("success", () => {
   isDbOpened = true;
   db = openRequest.result;
@@ -120,14 +107,12 @@ openRequest.addEventListener("success", () => {
     loadInitialTodosFromDb();
   }
 });
-
 window.addEventListener("load", () => {
   isWindowLoaded = true;
   if (isDbOpened) {
     loadInitialTodosFromDb();
   }
 });
-
 const routes = {
   "/": () => onFilterSelected("all"),
   "/active": () => onFilterSelected("active"),
@@ -135,29 +120,23 @@ const routes = {
 };
 const router = Router(routes);
 router.init();
-
 clearCompletedButton.addEventListener("click", () =>
   onPressedClearCompletedButton()
 );
 toggleAllCheckboxButton.addEventListener("change", () => onPressedToggleAll());
 function render() {
-  clearCompletedButton.style.display = "none";
   const li = document.querySelectorAll(".todo-list li");
   li.forEach((item) => {
     item.remove();
   });
   const todos = getFilteredTodos();
   const isClearCompletedVisible = () => todos.some((todo) => todo.completed);
-  isClearCompletedVisible()
-    ? (clearCompletedButton.style.display = "block")
-    : (clearCompletedButton.style.display = "none");
+  onElementsDisplayed(isClearCompletedVisible(), clearCompletedButton);
+  const main = document.querySelector(".main");
+  const footer = document.querySelector(".footer");
   const isMainDisplayed = () => todos.length > 0;
-  isMainDisplayed()
-    ? (main.style.display = "block")
-    : (main.style.display = "none");
-  isMainDisplayed()
-    ? (footer.style.display = "block")
-    : (footer.style.display = "none");
+  onElementsDisplayed(isMainDisplayed(), main);
+  onElementsDisplayed(isMainDisplayed(), footer);
   todos.forEach((todo) => {
     const div = document.createElement("div");
     div.className = "view";
@@ -184,7 +163,9 @@ function render() {
     div.appendChild(label);
     div.appendChild(deleteButton);
     listItem.appendChild(div);
+    const taskList = document.querySelector(".todo-list");
     taskList.append(listItem);
+    const count = document.querySelector(".todo-count");
     count.textContent = getTodosCount() + " items left";
     if (todo.isBeingEdited) {
       listItem.classList = "editing";
@@ -200,7 +181,6 @@ function render() {
         listItem.className = "";
       });
     }
-
     deleteButton.addEventListener("click", () => onTodoRemoved(todo.id));
     toggleButton.addEventListener("click", () => onCompletedToggled(todo.id));
     label.addEventListener("dblclick", () => onEditionInitiated(todo.id));
@@ -209,19 +189,11 @@ function render() {
 textInput.addEventListener("change", () => {
   const text = textInput.value;
   text.trim();
-  const newItem = { title: text, completed: false, isBeingEdited: false };
-  let transaction = db.transaction(["todo_os"], "readwrite");
-  const objectStore = transaction.objectStore("todo_os");
+  const newItem = { title: text, completed: false };
+  loadDb();
   objectStore.add(newItem);
-  transaction.addEventListener("complete", () => {
-    console.log("Transaction completed: database modification finished.");
-  });
-  transaction.addEventListener("error", () =>
-    console.log("Transaction not opened due to error")
-  );
   textInput.value = "";
   textInput.focus();
-
   const request = objectStore.getAll();
   request.onsuccess = () => {
     const idNumber = request.result[request.result.length - 1].id;
