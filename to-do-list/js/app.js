@@ -1,21 +1,23 @@
+import {
+  createStore,
+  applyMiddleware,
+} from "https://unpkg.com/redux@5.0.1/dist/redux.browser.mjs";
+
 const textInput = document.querySelector(".new-todo");
 const toggleAllCheckboxButton = document.querySelector(".toggle-all");
 const clearCompletedButton = document.querySelector(".clear-completed");
-let todos = [];
-let selectedFilter = "all";
+
 // Selectors
 const getTodosCount = () => getFilteredTodos().length;
 function getFilteredTodos() {
-  if (selectedFilter === "all") {
-    return todos;
+  if (store.getState().selectedFilter === "all") {
+    return store.getState().todos;
   }
-  return todos.filter(
-    (todo) => todo.completed === (selectedFilter === "completed")
+  return store.getState().todos.filter(
+    (todo) => todo.completed === (store.getState().selectedFilter === "completed")
   );
 }
-function areAllTodosCompleted() {
-  return todos.every((todo) => todo.completed);
-}
+
 // Event handlers
 const onElementsDisplayed = (statement, element) => {
   return statement
@@ -26,74 +28,16 @@ const loadDb = () => {
   const transaction = db.transaction(["todo_os"], "readwrite");
   return transaction.objectStore("todo_os");
 };
-const onFilterSelected = (filter) => {
-  selectedFilter = filter;
-  render();
-};
+
+const todosLoaded = (loadedTodos) => ({ type: "todosLoaded", payload: loadedTodos });
 const onTodosLoadedFromDb = (loadedTodos) => {
-  todos = loadedTodos;
-  render();
-};
-const onTodoRemoved = (id) => {
-  const objectStore = loadDb();
-  objectStore.delete(id);
-  todos = todos.filter((todo) => todo.id !== id);
-  render();
-};
-const onEditionInitiated = (id) => {
-  const todo = todos.find((todo) => todo.id === id);
-  todo.isBeingEdited = true;
-  render();
-};
-const onEditionCompleted = (id, newTitle) => {
-  const todo = todos.find((todo) => todo.id === id);
-  todo.title = newTitle;
-  todo.isBeingEdited = false;
-  const objectStore = loadDb();
-  objectStore.put(todo);
-  render();
-};
-const onCompletedToggled = (id) => {
-  const todo = todos.find((todo) => todo.id === id);
-  todo.completed = !todo.completed;
-  const objectStore = loadDb();
-  objectStore.put(todo);
-  render();
-};
-const onPressedToggleAll = () => {
-  if (!todos.length) {
-    return;
-  }
-  const areAllCompleted = areAllTodosCompleted();
-  todos = todos.map((todo) => ({ ...todo, completed: !areAllCompleted }));
-  const objectStore = loadDb();
-  todos.forEach((todo) => objectStore.put(todo));
-  render();
-};
-const onPressedClearCompletedButton = () => {
-  const objectStore = loadDb();
-  todos.forEach((todo) => {
-    if (todo.completed) {
-      objectStore.delete(todo.id);
-    }
-  });
-  todos = todos.filter((todo) => !todo.completed);
+  store.dispatch(todosLoaded(loadedTodos));
   render();
 };
 
-const onListUpdated = (text) => {
-  const objectStore = loadDb();
-  const request = objectStore.getAll();
-  request.onsuccess = () => {
-    const idNumber = request.result[request.result.length - 1].id;
-    todos.push({
-      title: text,
-      completed: false,
-      isBeingEdited: false,
-      id: idNumber,
-    });
-  };
-};
+function areAllTodosCompleted() {
+  return store.getState().todos.every((todo) => todo.completed);
+}
 //otwarcie bazy danych
 let db;
 const openRequest = window.indexedDB.open("todo_db", 1);
@@ -131,26 +75,144 @@ window.addEventListener("load", () => {
     loadInitialTodosFromDb();
   }
 });
+const initialState = {
+  todos: [],
+  selectedFilter: "all",
+};
+
+const reducer = (state = initialState, action) => {
+  switch (action.type) {
+    case "todosLoaded":
+      return {...state, todos: action.payload };
+
+    case "onTodoRemoved":
+      return {
+        ...state,
+        todos: state.todos.filter((todo) => 
+          todo.id !== action.payload
+        ),
+      };
+
+    case "onEditionInitiated":
+      return { 
+        ...state,
+        todos: state.todos.map((todo) =>
+            todo.id === action.payload 
+              ? { ...todo, isBeingEdited: true } 
+              : todo
+          )
+      };
+
+    case "onEditionCompleted":
+      return {
+        ...state,
+        todos: state.todos.map((todo) =>
+          todo.id === action.payload.id 
+        ? { ...todo, title: action.payload.newTitle, isBeingEdited: false } 
+        : todo
+        ),
+      };
+
+    case "onCompletedToggle":
+      return {
+        ...state,
+        todos: state.todos.map((todo) =>
+          todo.id === action.payload 
+           ? {...todo, completed:!todo.completed } 
+            : todo
+        ),
+      }
+
+    case "onPressedToggleAll":
+      const areAllCompleted = state.todos.every(todo => todo.completed);
+      return {
+        ...state,
+        todos: state.todos.map(todo => ({ ...todo, completed: !areAllCompleted })),
+      };
+
+    case "onPressedClearCompletedButton":
+      return {
+        ...state,
+        todos: state.todos.filter(todo =>!todo.completed),
+      }
+
+    case "onFilterSelected":
+      return {...state, selectedFilter: action.payload};
+
+    default:
+      return state;
+  }
+};
+
+const getTodoById = (id) => {
+  return store.getState().todos.find((todo) => todo.id === id);
+}
+
+function removeTodo(todoId) {
+  store.dispatch({type: "onTodoRemoved", payload: todoId});
+  const objectStore = loadDb();
+  objectStore.delete(todoId);
+}
+function initiateEdition(todoId) {
+  store.dispatch({ type: "onEditionInitated", payload: todoId })
+  const objectStore = loadDb();
+  objectStore.put(getTodoById(todoId));
+}
+function completeEtition(todoId, newTitle) {
+  store.dispatch({ type: "onEditionCompleted", payload: { todoId, newTitle } });
+  const objectStore = loadDb();
+  objectStore.put(getTodoById(todoId));
+}
+function pressToggle(todoId) {
+  console.log("toggle", todoId);
+  console.log("before", getTodoById(todoId))
+  store.dispatch({type: "onCompletedToggle", payload: todoId  });
+  const objectStore = loadDb();
+  objectStore.put(getTodoById(todoId));
+  console.log("after", getTodoById(todoId))
+}
+function pressToggleAll() {
+  store.dispatch({ type: "onPressedToggleAll" });
+  const objectStore = loadDb();
+  objectStore.put(todo)
+}
+function pressClearCompleted() {
+  store.dispatch({ type: "onPressedClearCompleted" });
+  const objectStore = loadDb();
+  objectStore.put(store.get);
+}
+function selectFilter(filter) {
+  store.dispatch({ type: "onFilterSelected", payload: filter });
+}
+
+const middleware = store => (next) => (action) => {
+  next(action);
+  return render();
+};
+const middlewareEnchancer = applyMiddleware(middleware);
+const store = createStore(reducer,middlewareEnchancer);
 
 const routes = {
-  "/": () => onFilterSelected("all"),
-  "/active": () => onFilterSelected("active"),
-  "/completed": () => onFilterSelected("completed"),
+  "/": () => selectFilter("all"),
+  "/active": () => selectFilter("active"),
+  "/completed": () => selectFilter("completed"),
 };
 const router = Router(routes);
 router.init();
 
 clearCompletedButton.addEventListener("click", () =>
-  onPressedClearCompletedButton()
+  pressClearCompleted()
 );
-toggleAllCheckboxButton.addEventListener("change", () => onPressedToggleAll());
+toggleAllCheckboxButton.addEventListener("click", () =>
+  pressToggleAll()
+);
 function render() {
-  toggleAllCheckboxButton.checked = areAllTodosCompleted();
   const li = document.querySelectorAll(".todo-list li");
   li.forEach((item) => {
     item.remove();
   });
   const todos = getFilteredTodos();
+  toggleAllCheckboxButton.checked = areAllTodosCompleted();
   const isClearCompletedVisible = () => todos.some((todo) => todo.completed);
   onElementsDisplayed(isClearCompletedVisible(), clearCompletedButton);
   const main = document.querySelector(".main");
@@ -171,7 +233,7 @@ function render() {
     filters.forEach((a) => {
       a.classList.remove("selected");
     });
-    const filter = document.getElementById("filter-" + selectedFilter);
+    const filter = document.getElementById("filter-" + store.getState().selectedFilter);
     filter.className = "filter selected";
     const listItem = document.createElement("li");
     todo.completed
@@ -198,27 +260,33 @@ function render() {
       newText.focus();
       newText.addEventListener("change", () => {
         label.textContent = newText.value;
-        onEditionCompleted(todo.id, newText.value);
+        completeEtition(todo.id, newText.value);
         listItem.removeChild(newText);
         listItem.className = "";
       });
     }
-    deleteButton.addEventListener("click", () => onTodoRemoved(todo.id));
-    toggleButton.addEventListener("click", () => onCompletedToggled(todo.id));
-    label.addEventListener("dblclick", () => onEditionInitiated(todo.id));
+    deleteButton.addEventListener("click", () =>
+      removeTodo(todo.id)
+    );
+    toggleButton.addEventListener("click", () =>
+      pressToggle(todo.id)
+    );
+    label.addEventListener("dblclick", () =>
+      initiateEdition(todo.id)
+    );
   });
 }
 textInput.addEventListener("keypress", () => {
   if (event.key === "Enter") {
-    const text = textInput.value;
-    text.trim();
-    const newItem = { title: text, completed: false };
-    const objectStore = loadDb();
-    objectStore.add(newItem);
-    textInput.value = "";
-    textInput.focus();
-    onListUpdated(text);
-    console.log(todos);
-    render();
+    if (textInput.value !== "") {
+      const text = textInput.value;
+      text.trim();
+      const newItem = { title: text, completed: false };
+      const objectStore = loadDb();
+      objectStore.add(newItem);
+      textInput.value = "";
+      textInput.focus();
+      render();
+    }
   }
 });
