@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Henny+Penny" />
+  <title>Saper</title>
+  <style>
+    .mainDiv {
+      font-family: "Henny Penny";
+      width: 500px;
+      margin: auto;
+      text-align: center;
+    }
+
+    .gameContainer {
+      font-family: "Henny Penny";
+      width: 500px;
+      margin: auto;
+      text-align: center;
+    }
+
+    input {
+      width: 20px;
+      height: 20px;
+    }
+
+    #generateButton {
+      font-family: "Henny Penny";
+      background-color: white;
+      border: 1px solid black;
+      border-radius: 10px;
+    }
+
+    .gameDiv {
+      width: 40px;
+      height: 40px;
+      position: relative;
+      user-select: none;
+    }
+
+    .tile {
+      position: absolute;
+      background-image: url("img/klepa.png");
+      background-size: 25px;
+      border: 1px solid rgb(159, 159, 159);
+      width: 25px;
+      height: 25px;
+      font-size: x-small;
+      align-content: center;
+    }
+
+    .tile img {
+      width: 25px;
+      height: 25px;
+    }
+
+    #table {
+      position: relative;
+      margin: auto;
+    }
+  </style>
+</head>
+
+<body id="body">
+  <script>
+    const body = document.getElementById("body");
+    const mainDiv = document.createElement("div");
+    const gameContainer = document.createElement("div");
+    mainDiv.setAttribute("class", "mainDiv");
+    gameContainer.setAttribute("class", "gameContainer");
+    body.append(mainDiv, gameContainer);
+    let bombArray = [];
+    const wymiary = ["height: ", "width: ", "mines: "];
+    for (let i = 0; i < wymiary.length; i++) {
+      const input = document.createElement("input");
+      input.oninput = () => {
+        setTimeout(() => {
+          if (isNaN(input.value)) {
+            input.value = ""
+          }
+        }, 500
+        )
+      }
+      const label = document.createElement("label");
+      const br = document.createElement("br");
+      input.setAttribute("type", "text");
+      input.setAttribute("id", "inp" + i);
+      label.setAttribute("for", "inp" + i);
+      label.innerText = wymiary[i];
+      mainDiv.append(label, input, br);
+    }
+    const button = document.createElement("button");
+    button.setAttribute("id", "generateButton");
+    button.setAttribute("onclick", "startGame()");
+    button.innerText = "Generate";
+    mainDiv.append(button);
+    //utworzenie wstepnego wygladu strony
+
+    const userName = window.prompt("Przedstaw się", "orzeł")
+    function startGame() {
+      let uncoveredTiles = []
+      let gameOn = true
+      let started = true
+      const startTime = Date.now()
+      const height = document.getElementById("inp0").value;
+      const width = document.getElementById("inp1").value;
+      const bombs = document.getElementById("inp2").value;
+      let remainingBombs = bombs
+      if (!height || !width || !bombs) {
+        alert("uzupełnij wszystkie wartośći");
+      } else {
+        if (height < 0 || width < 0 || bombs < 0) {
+          alert("wartości muszą być dodatnie");
+        } else {
+          gameContainer.innerHTML = "";
+          bombArray = [];
+          const timeParagraph = document.createElement("p");
+          timeParagraph.innerText = "Pozostało bomb: " + remainingBombs;
+          const czas = document.createElement("p")
+          setInterval(() => {
+            if (gameOn) {
+              const newTime = Date.now()
+              czas.innerText = `Grasz: ${Math.round((newTime - startTime) / 1000)}[s]`
+            }
+          }, 40)
+          gameContainer.append(timeParagraph, czas);
+
+          //losowanie bomb
+          for (let i = 0; i < height; i++) {
+            let array = [];
+            for (let j = 0; j < width; j++) {
+              array.push(0);
+            }
+            bombArray.push(array);
+          }
+          generateTiles(timeParagraph);
+        }
+      }
+      function generateBombs(tile) {
+        const tileX = tile.getAttribute("left") / 25
+        const tileY = tile.getAttribute("top") / 25
+        for (let i = 0; i < bombs; i++) {
+          const x = Math.floor(Math.random() * width);
+          const y = Math.floor(Math.random() * height);
+          if (bombArray[y][x] === -1) {
+            i--;
+          } else if (tileX === y && tileY === x) {
+            i--;
+          } else {
+            bombArray[y][x] = -1
+            for (let i = -1; i < 2; i++) {
+              for (let j = -1; j < 2; j++) {
+                if (y + i < height && y + i > -1) {
+                  if (bombArray[y + i][x + j] !== undefined) {
+                    if (j !== 0 || i !== 0) {
+                      if (bombArray[y + i][x + j] !== -1) {
+                        bombArray[y + i][x + j] += 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      function generateTiles(timeParagraph) {
+        //generowanie tablicy do sapera
+        const gameDiv = document.createElement("div");
+        gameDiv.setAttribute("class", "gameDiv");
+        gameDiv.style.left = `calc(50% - ${width * 12.5}px)`
+        for (let i = 0; i < height; i++) {
+          for (let j = 0; j < width; j++) {
+            const tile = document.createElement("div");
+            tile.setAttribute("class", "tile");
+            const img = document.createElement("img")
+            tile.style.left = j * 25 + "px";
+            tile.setAttribute("left", j * 25);
+            tile.style.top = i * 25 + "px";
+            tile.setAttribute("top", i * 25);
+
+            //eventhandler na lewy przycisk myszy
+            tile.addEventListener("click", function leftCLick() {
+              if (gameOn) {
+                if (started) {
+                  const newTile = gameDiv.children
+                  generateBombs(tile);
+                  for (let k = 0; k < height; k++) {
+                    for (let j = 0; j < width; j++) {
+                      const a = parseInt(newTile[k * width + j].getAttribute("left")) / 25
+                      const b = parseInt(newTile[k * width + j].getAttribute("top")) / 25
+                      newTile[k * width + j].setAttribute("value", bombArray[b][a])//dodanie atrybutu value do kazdego tile'a
+                    }
+                  }
+                  started = false
+                  console.table(bombArray)
+                }
+                //odsłania wszystkie 0
+                revealAll(i * width + j)
+                function revealAll(id) {
+                  if (!uncoveredTiles.includes(id)) {
+                    uncoveredTiles.push(id)
+                  }
+                  const newTile = gameDiv.children
+                  newTile[id].style.background = "white"
+                  newTile[id].innerText = newTile[id].getAttribute("value")
+                  if (newTile[id].getAttribute("value") === "0") {
+                    for (let l = -1; l <= 1; l++) {
+                      for (let m = -1; m <= 1; m++) {
+                        const nextID = id + (l * width) + m
+                        if (newTile[nextID] != undefined && !uncoveredTiles.includes(nextID) && (nextID) >= 0 && (nextID) < width * height) {
+                          if ((nextID) % width !== width - 1 || (id) % width !== 0) {
+                            if ((nextID) % width !== 0 || (id) % width !== width - 1) {
+                              revealAll(nextID)
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+
+                //przegrana
+                if (tile.getAttribute("value") === "-1") {
+                  window.alert("przegrałeś")
+                  gameOn = false
+                  for (let i = 0; i < height; i++) {
+                    for (let j = 0; j < width; j++) {
+                      if (gameDiv.children[j * height + i].getAttribute("value") === "-1") {
+                        gameDiv.children[j * height + i].innerHTML = '<img src="img/pbomb.PNG">'
+                      }
+                    }
+                  }
+                  tile.innerHTML = '<img src="img/bomb.PNG">'
+                }
+
+                //wygrana
+                if ((height * width - uncoveredTiles.length) === parseInt(bombs)) {
+                  if (gameOn) {
+                    gameOn = false
+                    window.alert("wygrałeś")
+
+                    //tworzenie nowego ciasteczka
+                    const id = "id" + Math.random().toString(16).slice(2)
+                    const finalTime = Date.now() - startTime
+                    setCookie(id, `[${userName},${finalTime},wymiary:${width}x${height},${bombs}]`, 30)
+                    function setCookie(name, value, days) {
+                      let expires = "";
+                      if (days) {
+                        const date = new Date();
+                        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                        expires = "; expires=" + date.toUTCString();
+                      }
+                      document.cookie = name + "=" + value + expires + "; SameSite=Strict";
+                    }
+                    const unsortedCookies = document.cookie.split(";")
+                    const listOfCookies = unsortedCookies.sort((a, b) => {
+                      const timeA = parseInt(a.split(',')[1])
+                      const timeB = parseInt(b.split(',')[1])
+                      return timeA - timeB
+                    })
+
+                    //generowanie tablicy wyników
+                    timeParagraph.innerText = "Twój czas to: " + finalTime / 1000 + "s"
+                    const tablicaWynikow = document.createElement("table")
+                    tablicaWynikow.style.top = (height * 25) + 5 + 'px'
+                    tablicaWynikow.setAttribute("id", "table")
+                    const th = document.createElement("th")
+                    th.setAttribute("colspan", "3")
+                    const description = document.createElement("tr")
+                    description.innerHTML += "<td>Miejsce</td> <td>Gracz</td> <td>Czas</td>"
+                    description.style.fontWeight = 600
+                    tablicaWynikow.append(th, description)
+                    let counter = 1
+                    let top10Records = []
+
+                    //odczytywanie wszystkich ciasteczek i dodanie ich do tabeli
+                    for (let o = 0; o < listOfCookies.length; o++) {
+                      const rekord = listOfCookies[o].slice(listOfCookies[o].indexOf("=") + 2, listOfCookies[o].length - 1)
+                      const wymiary = rekord.slice(rekord.indexOf(":") + 1)
+                      if (wymiary === `${width}x${height},${bombs}`) {
+                        top10Records.push(rekord)
+                        const wymiary1 = rekord.split(',')
+                        if (parseInt(wymiary1[1]) === finalTime) {
+                          timeParagraph.innerText += " i zajmujesz " + (top10Records.indexOf(rekord) + 1) + " miejsce"
+                        }
+                        wymiary1[1] = wymiary1[1] / 1000 + "s"
+                        wymiary1.unshift(counter)
+                        counter++
+                        const tr = document.createElement("tr")
+                        for (let p = 0; p < wymiary1.length - 2; p++) {
+                          const td = document.createElement("td")
+                          td.innerText = wymiary1[p]
+                          tr.append(td)
+                        }
+                        th.innerText = `Top 10 wyników w kategorii: ${height}x${width} z ${bombs} bombami`
+                        if (top10Records.length < 11) {
+                          tablicaWynikow.append(tr)
+                          gameContainer.append(tablicaWynikow)
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            })
+
+            //eventhandler na prawy przycisk myszy
+            let position = 0
+            tile.oncontextmenu = function rightClick(e) {
+              e.preventDefault()
+              if (tile.innerText === "" && gameOn) {
+                tile.append(img)
+                if (position === 0) {
+                  remainingBombs--
+                  img.src = "img/flaga.PNG"
+                  timeParagraph.innerText = "Pozostało bomb: " + remainingBombs
+                  position++
+                } else if (position === 1) {
+                  img.src = "img/pyt.PNG"
+                  timeParagraph.innerText = "Pozostało bomb: " + remainingBombs + "?"
+                  position++
+                } else {
+                  tile.innerText = ""
+                  remainingBombs++
+                  timeParagraph.innerText = "Pozostało bomb: " + remainingBombs
+                  position = 0
+                }
+              }
+            }
+            gameDiv.append(tile);
+          }
+        }
+        gameContainer.append(gameDiv);
+      }
+    }
+  </script>
+</body>
+
+</html>
